@@ -123,6 +123,11 @@
                                                         </path>
                                                     </svg>
                                                 </a>
+            <?php if ($ad->status !== 'sold'): ?>
+                <a href="<?php echo URL_ROOT; ?>/listings/mark_sold/<?php echo $ad->id; ?>"
+                   onclick="return confirm('Mark this ad as sold?');"
+                   class="text-blue-600 hover:text-blue-800 text-sm font-bold ml-2">Mark Sold</a>
+            <?php endif; ?>
                                                 <!-- Delete -->
                                                 <form
                                                     action="<?php echo URL_ROOT; ?>/dashboard/delete_ad/<?php echo $ad->id; ?>"

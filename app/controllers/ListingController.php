@@ -180,6 +180,44 @@ class ListingController extends Controller
             redirect('listings');
         }
 
+        $relatedAds = [];
+
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+                DB_USER,
+                DB_PASS,
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+
+            $viewStmt = $pdo->prepare("UPDATE ads SET view_count = COALESCE(view_count, 0) + 1 WHERE id = :id");
+            $viewStmt->execute([':id' => $id]);
+
+            $countStmt = $pdo->prepare("SELECT COALESCE(view_count, 0) FROM ads WHERE id = :id");
+            $countStmt->execute([':id' => $id]);
+            $ad->view_count = (int)$countStmt->fetchColumn();
+
+            $relStmt = $pdo->prepare("
+                SELECT id, title, price, currency, images, created_at
+                FROM ads
+                WHERE category_id = :category_id
+                  AND id != :id
+                  AND status = 'active'
+                ORDER BY created_at DESC
+                LIMIT 4
+            ");
+            $relStmt->execute([
+                ':category_id' => $ad->category_id,
+                ':id' => $id
+            ]);
+            $relatedAds = $relStmt->fetchAll(PDO::FETCH_OBJ);
+        } catch (Exception $e) {
+            $relatedAds = [];
+            if (!isset($ad->view_count)) {
+                $ad->view_count = 0;
+            }
+        }
+
         $user = $this->model('User')->getUserById($ad->user_id);
 
         // Ensure user obj exists
@@ -195,7 +233,8 @@ class ListingController extends Controller
         $data = [
             'ad' => $ad,
             'user' => $user,
-            'isFavorite' => $isFavorite
+            'isFavorite' => $isFavorite,
+              'related_ads' => $relatedAds
         ];
 
         $this->view('listings/show', $data);

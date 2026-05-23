@@ -242,4 +242,52 @@
     </div>
 </div>
 
+
+<!-- Extra Product Features -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="text-gray-700 font-bold">
+            👁 Views:
+            <span class="text-indigo-600"><?php echo isset($data['ad']->view_count) ? (int)$data['ad']->view_count : 0; ?></span>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+            <button type="button"
+                onclick="navigator.clipboard.writeText(window.location.href); alert('Product link copied!');"
+                class="px-4 py-2 rounded-lg bg-slate-900 text-white font-bold text-sm hover:bg-slate-800">
+                Copy Link
+            </button>
+
+            <a target="_blank"
+               href="https://wa.me/?text=<?php echo urlencode($data['ad']->title . ' - ' . URL_ROOT . '/listings/' . $data['ad']->id); ?>"
+               class="px-4 py-2 rounded-lg bg-green-600 text-white font-bold text-sm hover:bg-green-700">
+                Share on WhatsApp
+            </a>
+        </div>
+    </div>
+
+    <?php if (!empty($data['related_ads'])): ?>
+        <div class="mb-12">
+            <h2 class="text-2xl font-extrabold text-gray-900 mb-5">Similar Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <?php foreach ($data['related_ads'] as $rel): ?>
+                    <?php
+                    $relImages = json_decode($rel->images, true);
+                    $relImg = (!empty($relImages) && isset($relImages[0])) ? $relImages[0] : 'uploads/ads/default.svg';
+                    $relImgUrl = (strpos($relImg, 'http') === 0) ? $relImg : URL_ROOT . '/' . ltrim($relImg, '/');
+                    ?>
+                    <a href="<?php echo URL_ROOT; ?>/listings/<?php echo $rel->id; ?>"
+                       class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition block">
+                        <img src="<?php echo $relImgUrl; ?>" class="w-full h-40 object-cover" alt="<?php echo htmlspecialchars($rel->title); ?>">
+                        <div class="p-4">
+                            <h3 class="font-bold text-gray-900 line-clamp-2"><?php echo htmlspecialchars($rel->title); ?></h3>
+                            <p class="mt-2 text-indigo-600 font-extrabold">₹ <?php echo number_format($rel->price); ?></p>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+</div>
+
 <?php require_once APP_ROOT . '/views/inc/footer.php'; ?>

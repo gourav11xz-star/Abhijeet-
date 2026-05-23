@@ -219,6 +219,34 @@ $router->get('/user/status', function () {
     }
 });
 
+
+$router->get('/listings/mark_sold/([0-9]+)', function ($id) {
+    if (!isLoggedIn()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("UPDATE ads SET status = 'sold' WHERE id = :id AND user_id = :user_id");
+        $stmt->execute([
+            ':id' => $id,
+            ':user_id' => $_SESSION['user_id']
+        ]);
+
+        flash('ad_message', 'Ad marked as sold');
+    } catch (Exception $e) {
+        flash('ad_message', 'Could not mark as sold', 'alert-danger');
+    }
+
+    redirect('dashboard');
+});
+
 // 404
 $router->get('/chat', 'ChatController@index');
 $router->get('/chat/poll', 'ChatController@poll');
@@ -250,6 +278,34 @@ $router->post('/dashboard/delete_ad/([0-9]+)', function ($id) {
 
 
 
+
+
+$router->get('/listings/mark_sold/([0-9]+)', function ($id) {
+    if (!isLoggedIn()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("UPDATE ads SET status = 'sold' WHERE id = :id AND user_id = :user_id");
+        $stmt->execute([
+            ':id' => $id,
+            ':user_id' => $_SESSION['user_id']
+        ]);
+
+        flash('ad_message', 'Ad marked as sold');
+    } catch (Exception $e) {
+        flash('ad_message', 'Could not mark as sold', 'alert-danger');
+    }
+
+    redirect('dashboard');
+});
 
 // 404
 $router->set404(function () {

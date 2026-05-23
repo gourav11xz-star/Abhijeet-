@@ -129,4 +129,40 @@
     </form>
 </div>
 
+
+<script>
+(function () {
+    const input = document.getElementById('images');
+    if (!input) return;
+
+    const preview = document.createElement('div');
+    preview.id = 'image-preview-box';
+    preview.className = 'mt-4 grid grid-cols-2 md:grid-cols-5 gap-3';
+    input.parentNode.appendChild(preview);
+
+    input.addEventListener('change', function () {
+        preview.innerHTML = '';
+
+        if (this.files.length > 5) {
+            alert('Maximum 5 images allowed.');
+            this.value = '';
+            return;
+        }
+
+        Array.from(this.files).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'w-full h-24 object-cover rounded-lg border';
+                preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+})();
+</script>
+
 <?php require_once APP_ROOT . '/views/inc/footer.php'; ?>
