@@ -247,6 +247,100 @@ $router->get('/listings/mark_sold/([0-9]+)', function ($id) {
     redirect('dashboard');
 });
 
+
+$router->post('/reports/add/([0-9]+)', function ($adId) {
+    if (!isLoggedIn()) {
+        redirect('login');
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('listings/' . $adId);
+    }
+
+    $reason = trim($_POST['reason'] ?? '');
+    $comments = trim($_POST['comments'] ?? '');
+
+    if ($reason === '') {
+        flash('ad_message', 'Please select a reason for reporting', 'alert-danger');
+        redirect('listings/' . $adId);
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("
+            INSERT INTO reports (reporter_id, ad_id, reason, comments, status, created_at, updated_at)
+            VALUES (:reporter_id, :ad_id, :reason, :comments, 'pending', NOW(), NOW())
+        ");
+
+        $stmt->execute([
+            ':reporter_id' => $_SESSION['user_id'],
+            ':ad_id' => $adId,
+            ':reason' => $reason,
+            ':comments' => $comments
+        ]);
+
+        flash('ad_message', 'Report submitted successfully');
+    } catch (Exception $e) {
+        flash('ad_message', 'Could not submit report: ' . $e->getMessage(), 'alert-danger');
+    }
+
+    redirect('listings/' . $adId);
+});
+
+$router->get('/admin/reports/resolve/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("UPDATE reports SET status='resolved', updated_at=NOW() WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+
+        flash('admin_message', 'Report resolved');
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not resolve report', 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
+
+$router->get('/admin/reports/delete/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("DELETE FROM reports WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+
+        flash('admin_message', 'Report deleted');
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not delete report', 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
+
 // 404
 $router->get('/chat', 'ChatController@index');
 $router->get('/chat/poll', 'ChatController@poll');
@@ -306,6 +400,13 @@ $router->get('/listings/mark_sold/([0-9]+)', function ($id) {
 
     redirect('dashboard');
 });
+
+
+
+
+
+
+
 
 // 404
 $router->set404(function () {
