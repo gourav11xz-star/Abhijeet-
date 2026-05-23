@@ -19,13 +19,7 @@ try {
 
     $reports = $pdo->query("
         SELECT 
-            r.id,
-            r.reporter_id,
-            r.ad_id,
-            r.reason,
-            r.comments,
-            r.status,
-            r.created_at,
+            r.id, r.reporter_id, r.ad_id, r.reason, r.comments, r.status, r.created_at,
             a.title AS ad_title,
             a.status AS ad_status,
             a.user_id AS seller_id,
@@ -54,7 +48,7 @@ try {
     <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">Reports Management</h1>
-            <p class="text-sm text-gray-500 mt-1">Review reported ads, hide spam, and ban sellers.</p>
+            <p class="text-sm text-gray-500 mt-1">Review reports, hide ads, and ban sellers.</p>
         </div>
 
         <div class="space-x-4">
@@ -62,7 +56,10 @@ try {
             <a href="<?php echo URL_ROOT; ?>/admin/ads" class="text-gray-500 hover:text-indigo-600">Ads</a>
             <a href="<?php echo URL_ROOT; ?>/admin/users" class="text-gray-500 hover:text-indigo-600">Users</a>
             <a href="<?php echo URL_ROOT; ?>/admin/reports" class="text-indigo-600 font-bold border-b-2 border-indigo-600">
-                Reports <?php if ($pendingCount > 0): ?><span class="bg-red-600 text-white text-xs rounded-full px-2 py-0.5"><?php echo $pendingCount; ?></span><?php endif; ?>
+                Reports
+                <?php if ($pendingCount > 0): ?>
+                    <span class="bg-red-600 text-white text-xs rounded-full px-2 py-0.5"><?php echo $pendingCount; ?></span>
+                <?php endif; ?>
             </a>
         </div>
     </div>
@@ -119,7 +116,9 @@ try {
                                class="font-bold text-indigo-600 hover:text-indigo-800">
                                 <?php echo htmlspecialchars($r->ad_title ?? 'Deleted Ad'); ?>
                             </a>
-                            <div class="text-xs text-gray-400">Ad ID: <?php echo (int)$r->ad_id; ?> | <?php echo htmlspecialchars($r->ad_status ?? 'unknown'); ?></div>
+                            <div class="text-xs text-gray-400">
+                                Ad ID: <?php echo (int)$r->ad_id; ?> | <?php echo htmlspecialchars($r->ad_status ?? 'unknown'); ?>
+                            </div>
                         </td>
 
                         <td class="py-3 px-4 text-sm">
@@ -153,12 +152,14 @@ try {
                                 <a href="<?php echo URL_ROOT; ?>/admin/reports/resolve/<?php echo (int)$r->id; ?>"
                                    class="text-green-600 hover:text-green-900 text-xs font-bold border border-green-200 px-2 py-1 rounded bg-green-50">Resolve</a>
 
-                                <a href="<?php echo URL_ROOT; ?>/admin/reject_ad/<?php echo (int)$r->ad_id; ?>"
-                                   class="text-orange-600 hover:text-orange-900 text-xs font-bold border border-orange-200 px-2 py-1 rounded bg-orange-50">Hide Ad</a>
+                                <?php if ($r->ad_id): ?>
+                                    <a href="<?php echo URL_ROOT; ?>/admin/reject_ad/<?php echo (int)$r->ad_id; ?>"
+                                       class="text-orange-600 hover:text-orange-900 text-xs font-bold border border-orange-200 px-2 py-1 rounded bg-orange-50">Hide Ad</a>
 
-                                <a href="<?php echo URL_ROOT; ?>/admin/reports/ban_seller/<?php echo (int)$r->id; ?>"
-                                   onclick="return confirm('Ban this seller and hide all their ads?');"
-                                   class="text-red-700 hover:text-red-900 text-xs font-bold border border-red-300 px-2 py-1 rounded bg-red-50">Ban Seller</a>
+                                    <a href="<?php echo URL_ROOT; ?>/admin/reports/ban_seller/<?php echo (int)$r->id; ?>"
+                                       onclick="return confirm('Ban this seller and hide all their ads?');"
+                                       class="text-red-700 hover:text-red-900 text-xs font-bold border border-red-300 px-2 py-1 rounded bg-red-50">Ban Seller</a>
+                                <?php endif; ?>
 
                                 <a href="<?php echo URL_ROOT; ?>/admin/reports/delete/<?php echo (int)$r->id; ?>"
                                    onclick="return confirm('Delete this report?');"
