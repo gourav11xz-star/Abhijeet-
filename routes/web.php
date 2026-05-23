@@ -248,13 +248,16 @@ $router->get('/listings/mark_sold/([0-9]+)', function ($id) {
 });
 
 
+
+
+
+
+
+
+
 $router->post('/reports/add/([0-9]+)', function ($adId) {
     if (!isLoggedIn()) {
         redirect('login');
-    }
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        redirect('listings/' . $adId);
     }
 
     $reason = trim($_POST['reason'] ?? '');
@@ -277,7 +280,6 @@ $router->post('/reports/add/([0-9]+)', function ($adId) {
             INSERT INTO reports (reporter_id, ad_id, reason, comments, status, created_at, updated_at)
             VALUES (:reporter_id, :ad_id, :reason, :comments, 'pending', NOW(), NOW())
         ");
-
         $stmt->execute([
             ':reporter_id' => $_SESSION['user_id'],
             ':ad_id' => $adId,
@@ -285,7 +287,17 @@ $router->post('/reports/add/([0-9]+)', function ($adId) {
             ':comments' => $comments
         ]);
 
-        flash('ad_message', 'Report submitted successfully');
+        // Auto hide/reject ad after 3 reports
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE ad_id = :ad_id AND status = 'pending'");
+        $countStmt->execute([':ad_id' => $adId]);
+        $reportCount = (int)$countStmt->fetchColumn();
+
+        if ($reportCount >= 3) {
+            $hideStmt = $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE id = :ad_id");
+            $hideStmt->execute([':ad_id' => $adId]);
+        }
+
+        flash('ad_message', $reportCount >= 3 ? 'Report submitted. This ad is now hidden for review.' : 'Report submitted successfully');
     } catch (Exception $e) {
         flash('ad_message', 'Could not submit report: ' . $e->getMessage(), 'alert-danger');
     }
@@ -336,6 +348,59 @@ $router->get('/admin/reports/delete/([0-9]+)', function ($id) {
         flash('admin_message', 'Report deleted');
     } catch (Exception $e) {
         flash('admin_message', 'Could not delete report', 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
+
+$router->get('/admin/reports/ban_seller/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("
+            SELECT a.user_id, a.id AS ad_id
+            FROM reports r
+            JOIN ads a ON r.ad_id = a.id
+            WHERE r.id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_OBJ);
+
+        if ($row) {
+            $cols = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+
+            if (in_array('is_banned', $cols)) {
+                $ban = $pdo->prepare("UPDATE users SET is_banned = 1 WHERE id = :uid");
+                $ban->execute([':uid' => $row->user_id]);
+            }
+
+            if (in_array('status', $cols)) {
+                $ban2 = $pdo->prepare("UPDATE users SET status = 'banned' WHERE id = :uid");
+                $ban2->execute([':uid' => $row->user_id]);
+            }
+
+            $hideAds = $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE user_id = :uid");
+            $hideAds->execute([':uid' => $row->user_id]);
+
+            $resolve = $pdo->prepare("UPDATE reports SET status='resolved', updated_at=NOW() WHERE id=:id");
+            $resolve->execute([':id' => $id]);
+
+            flash('admin_message', 'Seller banned and ads hidden');
+        } else {
+            flash('admin_message', 'Seller not found', 'alert-danger');
+        }
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not ban seller: ' . $e->getMessage(), 'alert-danger');
     }
 
     redirect('admin/reports');
@@ -407,6 +472,158 @@ $router->get('/listings/mark_sold/([0-9]+)', function ($id) {
 
 
 
+
+
+$router->post('/reports/add/([0-9]+)', function ($adId) {
+    if (!isLoggedIn()) {
+        redirect('login');
+    }
+
+    $reason = trim($_POST['reason'] ?? '');
+    $comments = trim($_POST['comments'] ?? '');
+
+    if ($reason === '') {
+        flash('ad_message', 'Please select a reason for reporting', 'alert-danger');
+        redirect('listings/' . $adId);
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("
+            INSERT INTO reports (reporter_id, ad_id, reason, comments, status, created_at, updated_at)
+            VALUES (:reporter_id, :ad_id, :reason, :comments, 'pending', NOW(), NOW())
+        ");
+        $stmt->execute([
+            ':reporter_id' => $_SESSION['user_id'],
+            ':ad_id' => $adId,
+            ':reason' => $reason,
+            ':comments' => $comments
+        ]);
+
+        // Auto hide/reject ad after 3 reports
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE ad_id = :ad_id AND status = 'pending'");
+        $countStmt->execute([':ad_id' => $adId]);
+        $reportCount = (int)$countStmt->fetchColumn();
+
+        if ($reportCount >= 3) {
+            $hideStmt = $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE id = :ad_id");
+            $hideStmt->execute([':ad_id' => $adId]);
+        }
+
+        flash('ad_message', $reportCount >= 3 ? 'Report submitted. This ad is now hidden for review.' : 'Report submitted successfully');
+    } catch (Exception $e) {
+        flash('ad_message', 'Could not submit report: ' . $e->getMessage(), 'alert-danger');
+    }
+
+    redirect('listings/' . $adId);
+});
+
+$router->get('/admin/reports/resolve/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("UPDATE reports SET status='resolved', updated_at=NOW() WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+
+        flash('admin_message', 'Report resolved');
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not resolve report', 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
+
+$router->get('/admin/reports/delete/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("DELETE FROM reports WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+
+        flash('admin_message', 'Report deleted');
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not delete report', 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
+
+$router->get('/admin/reports/ban_seller/([0-9]+)', function ($id) {
+    if (!isAdmin()) {
+        redirect('login');
+    }
+
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+            DB_USER,
+            DB_PASS,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $stmt = $pdo->prepare("
+            SELECT a.user_id, a.id AS ad_id
+            FROM reports r
+            JOIN ads a ON r.ad_id = a.id
+            WHERE r.id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_OBJ);
+
+        if ($row) {
+            $cols = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+
+            if (in_array('is_banned', $cols)) {
+                $ban = $pdo->prepare("UPDATE users SET is_banned = 1 WHERE id = :uid");
+                $ban->execute([':uid' => $row->user_id]);
+            }
+
+            if (in_array('status', $cols)) {
+                $ban2 = $pdo->prepare("UPDATE users SET status = 'banned' WHERE id = :uid");
+                $ban2->execute([':uid' => $row->user_id]);
+            }
+
+            $hideAds = $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE user_id = :uid");
+            $hideAds->execute([':uid' => $row->user_id]);
+
+            $resolve = $pdo->prepare("UPDATE reports SET status='resolved', updated_at=NOW() WHERE id=:id");
+            $resolve->execute([':id' => $id]);
+
+            flash('admin_message', 'Seller banned and ads hidden');
+        } else {
+            flash('admin_message', 'Seller not found', 'alert-danger');
+        }
+    } catch (Exception $e) {
+        flash('admin_message', 'Could not ban seller: ' . $e->getMessage(), 'alert-danger');
+    }
+
+    redirect('admin/reports');
+});
 
 // 404
 $router->set404(function () {
