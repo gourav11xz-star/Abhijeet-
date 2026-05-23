@@ -77,6 +77,17 @@
 
 <!-- Chat Popup -->
 <?php require_once APP_ROOT . '/views/inc/chat_popup.php'; ?>
+
+<?php if (isLoggedIn()): ?>
+<script>
+function pingUserStatus() {
+    fetch('<?php echo URL_ROOT; ?>/user/ping_status', { method: 'POST' }).catch(() => {});
+}
+pingUserStatus();
+setInterval(pingUserStatus, 30000);
+</script>
+<?php endif; ?>
+
 </body>
 
 </html>

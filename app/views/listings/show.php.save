@@ -42,7 +42,7 @@
                 $processedImages = array_map(function ($img) {
                     if (strpos($img, 'http') === 0)
                         return $img;
-                    return URL_ROOT . '/' . ltrim($img, '/');
+                    return URL_ROOT . '/' . $img;
                 }, $images);
 
                 $initialImage = $processedImages[0];
@@ -53,15 +53,14 @@
                 <!-- Main Image -->
                 <div
                     class="h-[500px] w-full flex items-center justify-center overflow-hidden bg-black/5 relative group">
-                    <img src="<?php echo htmlspecialchars($initialImage); ?>" alt="<?php echo htmlspecialchars($data['ad']->title); ?>"
+                    <img :src="activeImage" alt="<?php echo $data['ad']->title; ?>"
                         class="max-w-full max-h-full object-contain transition-opacity duration-300">
                 </div>
 
                 <!-- Thumbnails -->
                 <?php if (count($processedImages) > 1): ?>
                     <div class="flex p-4 space-x-3 overflow-x-auto bg-white border-t border-gray-100">
-                        <?php foreach ($processedImages as $img): ?>
-                            <div @click="activeImage = '<?php echo $img; ?>'"
+                        <?php foreach ($processedImages as $img): ?>                            <div @click="activeImage = '<?php echo $img; ?>'"
                                 class="w-20 h-20 flex-shrink-0 cursor-pointer rounded-lg border-2 border-transparent hover:border-indigo-500 overflow-hidden transition-all duration-200"
                                 :class="{ 'border-indigo-500 ring-2 ring-indigo-200': activeImage === '<?php echo $img; ?>' }">
                                 <img src="<?php echo $img; ?>" class="w-full h-full object-cover">

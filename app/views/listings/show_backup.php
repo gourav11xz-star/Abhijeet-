@@ -53,7 +53,7 @@
                 <!-- Main Image -->
                 <div
                     class="h-[500px] w-full flex items-center justify-center overflow-hidden bg-black/5 relative group">
-                    <img src="<?php echo htmlspecialchars($initialImage); ?>" alt="<?php echo htmlspecialchars($data['ad']->title); ?>"
+                    <img src="<?php echo htmlspecialchars($initialImage); ?>" :src="activeImage" alt="<?php echo htmlspecialchars($data['ad']->title); ?>"
                         class="max-w-full max-h-full object-contain transition-opacity duration-300">
                 </div>
 

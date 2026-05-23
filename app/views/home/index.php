@@ -63,12 +63,27 @@
             <a href="<?php echo URL_ROOT; ?>/listings?category_id=<?php echo $category->id; ?>" class="group block">
                 <div
                     class="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 group-hover:-translate-y-1">
-                    <div
-                        class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-200">
-                        <!-- Icon Placeholder (dynamic based on name ideally) -->
-                        <span class="text-2xl font-bold">
-                            <?php echo substr($category->name, 0, 1); ?>
-                        </span>
+                    <?php
+                    $catImages = [
+                        'Cars' => 'cars.png',
+                        'Bikes' => 'bikes.png',
+                        'Properties' => 'properties.png',
+                        'Electronics & Appliances' => 'electronics-appliances.png',
+                        'Mobiles' => 'mobiles.png',
+                        'Commercial Vehicles & Spares' => 'commercial-vehicles-spares.png',
+                        'Furniture' => 'furniture.png',
+                        'Fashion' => 'fashion.png',
+                        'Books, Sports & Hobbies' => 'books-sports-hobbies.png',
+                        'Pets' => 'pets.png',
+                        'Services' => 'services.png',
+                        'Jobs' => 'jobs.png',
+                    ];
+                    $catImg = $catImages[$category->name] ?? 'cars.png';
+                    ?>
+                    <div class="w-24 h-24 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center mb-4 overflow-hidden group-hover:shadow-md transition-all duration-200">
+                        <img src="<?php echo URL_ROOT; ?>/assets/img/categories/<?php echo $catImg; ?>"
+                             alt="<?php echo htmlspecialchars($category->name); ?>"
+                             class="w-20 h-20 object-contain group-hover:scale-110 transition-transform duration-300">
                     </div>
                     <h3 class="text-sm font-bold text-gray-700 group-hover:text-indigo-600">
                         <?php echo $category->name; ?>

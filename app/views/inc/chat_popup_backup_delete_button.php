@@ -36,13 +36,6 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
-                <button type="button"
-                    x-show="hasActiveChat"
-                    @click="deleteConversation()"
-                    title="Delete chat"
-                    class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
-                    Delete
-                </button>
                 <button @click="minimize" class="hover:text-indigo-200 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"></path>
@@ -160,6 +153,7 @@
     </div>
 
 </div>
+
 <script>
     function chatPopup() {
         return {
@@ -170,8 +164,6 @@
             adId: null,
             receiverId: null,
             receiverName: '',
-            receiverOnline: false,
-            receiverLastSeen: '',
             adTitle: '',
             messages: [],
             conversations: [],
@@ -225,9 +217,15 @@
                 this.receiverId = receiverId;
                 this.isOpen = true;
                 this.hasActiveChat = true;
-                this.fetchReceiverStatus();
-                    this.fetchMessages();
-                this.fetchReceiverStatus();
+
+                const autoKey = `auto_msg_sent_${adId}_${receiverId}_${this.userId}`;
+                if (!localStorage.getItem(autoKey)) {
+                    this.newMessage = "Hi, I am interested in this product.";
+                    await this.sendMessage();
+                    localStorage.setItem(autoKey, "1");
+                }
+
+                this.fetchMessages();
                 this.startPolling();
                 this.saveState();
             },
@@ -269,24 +267,6 @@
                 this.loading = false;
             },
 
-            
-            async fetchReceiverStatus() {
-                if (!this.receiverId) return;
-
-                try {
-                    const response = await fetch('<?php echo URL_ROOT; ?>/user/status?user_id=' + this.receiverId);
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        this.receiverOnline = data.online;
-                        this.receiverLastSeen = data.last_seen || '';
-                    }
-                } catch (error) {
-                    this.receiverOnline = false;
-                }
-            },
-
-
             async fetchMessages() {
                 if (!this.adId || !this.receiverId) return;
 
@@ -324,48 +304,7 @@
                 this.loading = false;
             },
 
-            
-            async deleteConversation() {
-                if (!this.adId || !this.receiverId) {
-                    alert('No active chat selected.');
-                    return;
-                }
-
-                if (!confirm('Delete this chat for both sides?')) {
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('ad_id', this.adId);
-                formData.append('other_user_id', this.receiverId);
-
-                try {
-                    const response = await fetch('<?php echo URL_ROOT; ?>/chat/delete_conversation', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        this.messages = [];
-                        this.hasActiveChat = false;
-                        this.adId = null;
-                        this.receiverId = null;
-                        this.receiverName = '';
-                        this.adTitle = '';
-                        localStorage.removeItem('chatPopupState');
-                        this.fetchConversations();
-                        alert('Chat deleted for both sides.');
-                    } else {
-                        alert(data.message || 'Could not delete chat.');
-                    }
-                } catch (error) {
-                    alert('Delete failed. Please try again.');
-                }
-            },
-
-async sendMessage() {
+            async sendMessage() {
                 console.log('Attempting to send message...');
                 if (!this.newMessage.trim()) {
                     console.log('Message is empty');

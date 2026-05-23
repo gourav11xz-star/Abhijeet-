@@ -170,8 +170,6 @@
             adId: null,
             receiverId: null,
             receiverName: '',
-            receiverOnline: false,
-            receiverLastSeen: '',
             adTitle: '',
             messages: [],
             conversations: [],
@@ -225,9 +223,15 @@
                 this.receiverId = receiverId;
                 this.isOpen = true;
                 this.hasActiveChat = true;
-                this.fetchReceiverStatus();
-                    this.fetchMessages();
-                this.fetchReceiverStatus();
+
+                const autoKey = `auto_msg_sent_${adId}_${receiverId}_${this.userId}`;
+                if (!localStorage.getItem(autoKey)) {
+                    this.newMessage = "Hi, I am interested in this product.";
+                    await this.sendMessage();
+                    localStorage.setItem(autoKey, "1");
+                }
+
+                this.fetchMessages();
                 this.startPolling();
                 this.saveState();
             },
@@ -268,24 +272,6 @@
                 }
                 this.loading = false;
             },
-
-            
-            async fetchReceiverStatus() {
-                if (!this.receiverId) return;
-
-                try {
-                    const response = await fetch('<?php echo URL_ROOT; ?>/user/status?user_id=' + this.receiverId);
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        this.receiverOnline = data.online;
-                        this.receiverLastSeen = data.last_seen || '';
-                    }
-                } catch (error) {
-                    this.receiverOnline = false;
-                }
-            },
-
 
             async fetchMessages() {
                 if (!this.adId || !this.receiverId) return;

@@ -163,58 +163,69 @@ class ChatController extends Controller
     // API: Send Message for Popup
     public function api_send_message()
     {
+        // Prevent HTML warnings from breaking JSON
+        ini_set('display_errors', 0);
         header('Content-Type: application/json');
 
         if (!isLoggedIn()) {
-            echo json_encode(['status' => 'error', 'message' => 'Login required']);
+            echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
             return;
         }
 
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
-            return;
-        }
-
-        $adId = (int)($_POST['ad_id'] ?? 0);
-        $receiverId = (int)($_POST['receiver_id'] ?? 0);
-        $senderId = (int)$_SESSION['user_id'];
-        $message = trim($_POST['message'] ?? '');
-
-        if ($adId <= 0 || $receiverId <= 0 || $message === '') {
-            echo json_encode(['status' => 'error', 'message' => 'Missing data']);
-            return;
-        }
-
-        try {
-            $pdo = new PDO(
-                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-                DB_USER,
-                DB_PASS,
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-            );
-
-            $cols = $pdo->query("SHOW COLUMNS FROM messages")->fetchAll(PDO::FETCH_COLUMN);
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $data = [];
 
-            if (in_array('ad_id', $cols)) $data['ad_id'] = $adId;
-            if (in_array('sender_id', $cols)) $data['sender_id'] = $senderId;
-            if (in_array('receiver_id', $cols)) $data['receiver_id'] = $receiverId;
-            if (in_array('message', $cols)) $data['message'] = $message;
-            if (in_array('content', $cols)) $data['content'] = $message;
-            if (in_array('is_read', $cols)) $data['is_read'] = 0;
-            if (in_array('created_at', $cols)) $data['created_at'] = date('Y-m-d H:i:s');
-            if (in_array('updated_at', $cols)) $data['updated_at'] = date('Y-m-d H:i:s');
+            // Check content type to decide how to parse
+            $contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
 
-            $columns = array_keys($data);
-            $placeholders = array_map(function($c) { return ':' . $c; }, $columns);
+            if (strpos($contentType, 'application/json') !== false) {
+                // Handle JSON input
+                $content = file_get_contents('php://input');
+                $decoded = json_decode($content, true);
 
-            $sql = "INSERT INTO messages (" . implode(',', $columns) . ") VALUES (" . implode(',', $placeholders) . ")";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($data);
+                if (!is_array($decoded)) {
+                    echo json_encode(['status' => 'error', 'message' => 'Invalid JSON input']);
+                    return;
+                }
 
-            echo json_encode(['status' => 'success', 'message' => 'Message sent']);
-        } catch (Exception $e) {
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+                $data = [
+                    'sender_id' => $_SESSION['user_id'],
+                    'receiver_id' => isset($decoded['receiver_id']) ? (int) $decoded['receiver_id'] : 0,
+                    'ad_id' => isset($decoded['ad_id']) ? (int) $decoded['ad_id'] : 0,
+                    'message' => isset($decoded['message']) ? trim($decoded['message']) : ''
+                ];
+            } else {
+                // Handle Form Data (standard POST)
+                $data = [
+                    'sender_id' => $_SESSION['user_id'],
+                    'receiver_id' => isset($_POST['receiver_id']) ? (int) $_POST['receiver_id'] : 0,
+                    'ad_id' => isset($_POST['ad_id']) ? (int) $_POST['ad_id'] : 0,
+                    'message' => isset($_POST['message']) ? trim($_POST['message']) : ''
+                ];
+            }
+
+            if (empty($data['message']) || $data['receiver_id'] <= 0 || $data['ad_id'] <= 0) {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid parameters (Missing ID or Message)']);
+                return;
+            }
+
+            // Sanitize
+            $data['message'] = htmlspecialchars($data['message']);
+
+            try {
+                if ($this->messageModel->sendMessage($data)) {
+                    // Trigger Auto-Bot Reply
+                    $this->autoReply($data['sender_id'], $data['receiver_id'], $data['ad_id'], $data['message']);
+
+                    echo json_encode(['status' => 'success']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Database error']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['status' => 'error', 'message' => 'Exception: ' . $e->getMessage()]);
+            }
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid request method']);
         }
     }
 
@@ -293,7 +304,7 @@ class ChatController extends Controller
 
                 if (!empty($results)) {
                     $count = count($results);
-                    $reply = " $count " . ($count == 1 ? "item" : "items") . " matching your criteria:\n";
+                    $reply = "I found $count " . ($count == 1 ? "item" : "items") . " matching your criteria:\n";
                     if (!empty($filter['max_price']))
                         $reply .= " (Price < " . $filter['max_price'] . ")";
                     if (!empty($filter['location_text']))
